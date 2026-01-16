@@ -2,12 +2,12 @@
 #include "rk3128.dtsi"
 
 / {
-	model = "Generic RK3128 TV Box (HDMI+2USB+LAN+AV)";
+	model = "Generic RK3128 TV Box (HDMI+2USB+LAN+AV+WiFi)";
 	compatible = "rockchip,rk3128-tvbox", "rockchip,rk3128";
 
 	memory@60000000 {
 		device_type = "memory";
-		reg = <0x60000000 0x40000000>; /* 严格适配 1GB 内存，无需修改 */
+		reg = <0x60000000 0x40000000>; /* 1GB内存 */
 	};
 
 	chosen {
@@ -18,42 +18,53 @@
 	aliases {
 		serial0 = &uart2;
 		ethernet0 = &ethernet;
+		wifi0 = &wifi;
+	};
+
+	/* WiFi电源管理 */
+	vcc_wifi: vcc-wifi-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_wifi";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 };
 
-/* 串口调试口 - RK3128电视盒标准配置，默认开启 */
+/* 串口调试口 */
 &uart2 {
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_xfer>;
 };
 
-/* USB HOST 0 - 第一个USB接口，可接U盘/打印机 */
+/* USB HOST 0 */
 &usb_host0 {
 	status = "okay";
 	phy-supply = <&vcc5v0_host>;
 };
 
-/* USB HOST 1 - 第二个USB接口，优先接打印机，核心打印机接口，必开 */
+/* USB HOST 1（打印机优先） */
 &usb_host1 {
 	status = "okay";
 	phy-supply = <&vcc5v0_host>;
 };
 
-/* USB OTG - 兼容模式，备用USB，自动适配 */
+/* USB OTG */
 &usb_otg {
 	status = "okay";
 	dr_mode = "host";
 };
 
-/* 5V电源管理 - 为双USB供电，打印机供电稳定，防止供电不足识别失败 */
+/* 5V电源 */
 &vcc5v0_host {
 	regulator-always-on;
 	regulator-boot-on;
 	status = "okay";
 };
 
-/* 百兆网口 - 精准适配RK3128 RMII标准网口，电视盒标配，即插即用 */
+/* 百兆网口 */
 &ethernet {
 	status = "okay";
 	phy-mode = "rmii";
@@ -66,7 +77,7 @@
 	};
 };
 
-/* 网口引脚定义 - RK3128电视盒通用标准引脚，无兼容性问题 */
+/* 网口引脚 */
 &pinctrl {
 	rmii_pins: rmii-pins {
 		rockchip,pins =
@@ -81,21 +92,35 @@
 	};
 };
 
-/* HDMI接口 - 完整驱动，支持1080P输出，AV复合接口联动，电视盒核心显示 */
+/* HDMI接口 */
 &hdmi {
 	status = "okay";
 };
 
-/* AV复合音视频接口 - 模拟音视频输出，标准配置，开启 */
+/* AV复合接口 */
 &tvout {
 	status = "okay";
 };
 
-/* SD/EMMC闪存 - 适配电视盒8GB EMMC，存储固件和打印缓存 */
+/* EMMC闪存 */
 &emmc {
 	status = "okay";
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	mmc-hs200-1_8v;
 	non-removable;
+};
+
+/* WiFi模块（AP6212/AP6210 双频/单频通用） */
+&wifi {
+	compatible = "brcm,bcm43438";
+	reg = <0>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <RK_PA1 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&clk_gates6 14>;
+	clock-names = "extclk";
+	brcm,board-type = "AP6212";
+	vddio-supply = <&vcc_wifi>;
+	vddcore-supply = <&vcc_wifi>;
+	status = "okay";
 };
