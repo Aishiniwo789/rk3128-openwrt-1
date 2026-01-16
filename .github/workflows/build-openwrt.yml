@@ -42,27 +42,27 @@ jobs:
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 第8步 - 构建固件
-运行: |
+      - name: Step 8 - Build firmware
+        run: |
           cd openwrt
           make defconfig
           make -j$(nproc) download V=s
           make -j$(nproc) || make -j1 V=s
 
-- 名称：第9步 - 检查构建文件
-运行: |
+      - name: Step 9 - Check build files
+        run: |
           cd openwrt
           ls -l bin/targets/rockchip/armv7/
           ls -l bin/targets/rockchip/armv7/generic/
 
-- 名称：第10步 - 上传固件
-用途: actions/upload-artifact@v4
-与:
-名称: RK3128-OpenWrt-打印机服务器
-路径: |
+      - name: Step 10 - Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: RK3128-OpenWrt-Printer-Server
+          path:
             openwrt/bin/targets/rockchip/armv7/**/*
             openwrt/bin/targets/rockchip/armv7/*.img
             openwrt/bin/targets/rockchip/armv7/*.img.gz
             openwrt/bin/targets/rockchip/armv7/*.factory.img
             openwrt/bin/targets/rockchip/armv7/*.sysupgrade.bin
-如果未找到文件: 错误
+          if-no-files-found: error
