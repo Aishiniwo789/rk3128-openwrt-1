@@ -1,72 +1,68 @@
-name: 构建RK3128 OpenWrt打印服务器固件【终极修复】
-开启:
-推送:
-分支: [main]
-  workflow_dispatch: # 手动触发编译，优先用这个，最稳定
+name: Build RK3128 OpenWrt Print Server
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
 
-作业:
-构建OpenWrt:
-运行于: ubuntu-22.04
-权限:
-内容: 写
-步骤:
-      - 名称: 1. 检出仓库文件
-使用: aactions/checkout@v4
+jobs:
+  build_openwrt:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Step 1 - Checkout repository
+        uses: actions/checkout@v4
 
-      - name: 2. 清理系统空间+安装完整依赖（解决99%编译失败，必加）
-运行: |
+      - name: Step 2 - Clean space and install dependencies
+        run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt update -y && sudo apt full-upgrade -y
-          sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
-          gettext git libncurses-dev libssl-dev python3 python3-pip python3-setuptools python3-wheel \
-          rsync subversion unzip zlib1g-dev file wget curl xz-utils dosfstools squashfs-tools
+          sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3 python3-pip python3-setuptools python3-wheel rsync subversion unzip zlib1g-dev file wget curl xz-utils dosfstools squashfs-tools
 
-      -名称：3. 拉取【RK3128最佳适配】官方OpenWrt源码（23.05稳定版，无坑）
+      - name: Step 3 - Clone OpenWrt 23.05 source code
         run: git clone -b openwrt-23.05 --depth 1 https://github.com/openwrt/openwrt.git openwrt
 
-      - name: 4. 复制适配的设备树到正确目录
-运行: |
+      - name: Step 4 - Copy RK3128 DTS to correct path
+        run: |
           mkdir -p openwrt/target/linux/rockchip/dts/armv7
           cp rk3128-tvbox-rk3128.dts openwrt/target/linux/rockchip/dts/armv7/
 
-      - name: 5. 复制内核补丁+设备支持补丁（RK3128开机必成功）
-运行: |
+      - name: Step 5 - Copy kernel patches
+        run: |
           mkdir -p openwrt/target/linux/rockchip/patches-5.15
           cp 0001-rk3128-add-tvbox-support.patch openwrt/target/linux/rockchip/patches-5.15/
           cp 0002-rk3128-fix-wifi-usb-power.patch openwrt/target/linux/rockchip/patches-5.15/
 
-      - name: 6. 复制编译配置文件（无需修改）
+      - name: Step 6 - Copy config file
         run: cp .config openwrt/
 
-      - name: 7. 更新软件源+安装所有依赖包
-运行: |
+      - name: Step 7 - Update and install feeds
+        run: |
           cd openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 8. 生成配置+下载依赖包+编译固件（防失败：单线程兜底，必成功）
+      - name: 第8步 - 构建固件
 运行: |
           cd openwrt
           make defconfig
           make -j$(nproc) download V=s
           make -j$(nproc) || make -j1 V=s
 
-      - name: 9. 查看编译产物（确认固件生成，日志可见）
+- 名称：第9步 - 检查构建文件
 运行: |
           cd openwrt
           ls -l bin/targets/rockchip/armv7/
-          ls -l bin/targets/rockchip/armv7/*/
+          ls -l bin/targets/rockchip/armv7/generic/
 
-      - name: 10. 上传固件【100%能找到】RK3128正确路径+所有后缀全覆盖
-        uses: actions/upload-artifact@v4
-        with:
-          name: RK3128-OpenWrt-打印服务器固件-最终版
-          path: |
+- 名称：第10步 - 上传固件
+用途: actions/upload-artifact@v4
+与:
+名称: RK3128-OpenWrt-打印机服务器
+路径: |
             openwrt/bin/targets/rockchip/armv7/**/*
             openwrt/bin/targets/rockchip/armv7/*.img
             openwrt/bin/targets/rockchip/armv7/*.img.gz
             openwrt/bin/targets/rockchip/armv7/*.factory.img
             openwrt/bin/targets/rockchip/armv7/*.sysupgrade.bin
-            openwrt/bin/targets/rockchip/armv7/generic/*.img
-            openwrt/bin/targets/rockchip/armv7/generic/*.img.gz
-          if-no-files-found: error
+如果未找到文件: 错误
