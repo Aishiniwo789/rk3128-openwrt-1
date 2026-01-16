@@ -1,0 +1,105 @@
+/dts-v1/;
+#include "rk3128.dtsi"
+
+/ {
+	model = "Generic RK3128 TV Box";
+	compatible = "rockchip,rk3128-box", "rockchip,rk3128";
+
+	memory@60000000 {
+		reg = <0x60000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS2,115200n8 root=/dev/mmcblk0p2 rw rootwait earlyprintk";
+		stdout-path = "serial2:115200n8";
+	};
+
+	vcc5v0_host: vcc5v0-host-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc5v0_host";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vcc_wifi: vcc-wifi-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc_wifi";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio0 RK_PA0 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_xfer>;
+};
+
+&usb_host0 {
+	status = "okay";
+	phy-supply = <&vcc5v0_host>;
+};
+
+&usb_host1 {
+	status = "okay";
+	phy-supply = <&vcc5v0_host>;
+};
+
+&usb_otg {
+	status = "okay";
+	dr_mode = "host";
+};
+
+&ethernet {
+	status = "okay";
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins>;
+	phy-handle = <&phy0>;
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+};
+
+&pinctrl {
+	rmii_pins: rmii-pins {
+		rockchip,pins =
+			<1 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB2 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB3 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB5 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB6 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+	};
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&tvout {
+	status = "okay";
+};
+
+&emmc {
+	status = "okay";
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	non-removable;
+};
+
+&wifi {
+	compatible = "brcm,bcm43438";
+	reg = <0>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <RK_PA1 IRQ_TYPE_LEVEL_HIGH>;
+	vddio-supply = <&vcc_wifi>;
+	vddcore-supply = <&vcc_wifi>;
+	status = "okay";
+};
