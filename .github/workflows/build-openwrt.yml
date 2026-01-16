@@ -1,4 +1,4 @@
-# OpenWrt 23.05 for RK3128 TVBOX (HDMI+2USB+LAN+AV) 打印服务器专用
+# OpenWrt 23.05 for RK3128 TVBOX (HDMI+2USB+LAN+AV+WiFi) 打印服务器专用【修复固件找不到问题】
 name: Build RK3128 OpenWrt 打印服务器固件
 on:
   push:
@@ -46,10 +46,22 @@ jobs:
           make -j$(nproc) download V=s
           make -j$(nproc) V=s || make -j1 V=s
 
-      - name: 8. 编译完成-上传固件（可直接下载）
+      - name: 8. 【关键修复】查看编译产物，确认固件路径（方便排查，必加）
+        run: |
+          cd openwrt
+          ls -l bin/targets/rockchip/rk3128/
+          ls -l bin/targets/rockchip/rk3128/*/
+
+      - name: 9. 编译完成-上传固件【完美适配所有RK3128固件后缀，兜底所有文件】
         uses: actions/upload-artifact@v4
         with:
           name: RK3128-OpenWrt-打印服务器固件
           path: |
-            openwrt/bin/targets/rockchip/rk3128/*.img.gz
+            openwrt/bin/targets/rockchip/rk3128/**/*
             openwrt/bin/targets/rockchip/rk3128/*.img
+            openwrt/bin/targets/rockchip/rk3128/*.img.gz
+            openwrt/bin/targets/rockchip/rk3128/*.factory.img
+            openwrt/bin/targets/rockchip/rk3128/*.sysupgrade.bin
+            openwrt/bin/targets/rockchip/rk3128/generic/*.img
+            openwrt/bin/targets/rockchip/rk3128/generic/*.img.gz
+          if-no-files-found: error
