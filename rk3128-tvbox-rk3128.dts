@@ -1,0 +1,101 @@
+/dts-v1/;
+#include "rk3128.dtsi"
+
+/ {
+	model = "Generic RK3128 TV Box (HDMI+2USB+LAN+AV)";
+	compatible = "rockchip,rk3128-tvbox", "rockchip,rk3128";
+
+	memory@60000000 {
+		device_type = "memory";
+		reg = <0x60000000 0x40000000>; /* 严格适配 1GB 内存，无需修改 */
+	};
+
+	chosen {
+		bootargs = "console=ttyS2,115200n8 root=/dev/mmcblk0p2 rw rootwait earlyprintk init=/init coherent_pool=1M";
+		stdout-path = "serial2:115200n8";
+	};
+
+	aliases {
+		serial0 = &uart2;
+		ethernet0 = &ethernet;
+	};
+};
+
+/* 串口调试口 - RK3128电视盒标准配置，默认开启 */
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart2_xfer>;
+};
+
+/* USB HOST 0 - 第一个USB接口，可接U盘/打印机 */
+&usb_host0 {
+	status = "okay";
+	phy-supply = <&vcc5v0_host>;
+};
+
+/* USB HOST 1 - 第二个USB接口，优先接打印机，核心打印机接口，必开 */
+&usb_host1 {
+	status = "okay";
+	phy-supply = <&vcc5v0_host>;
+};
+
+/* USB OTG - 兼容模式，备用USB，自动适配 */
+&usb_otg {
+	status = "okay";
+	dr_mode = "host";
+};
+
+/* 5V电源管理 - 为双USB供电，打印机供电稳定，防止供电不足识别失败 */
+&vcc5v0_host {
+	regulator-always-on;
+	regulator-boot-on;
+	status = "okay";
+};
+
+/* 百兆网口 - 精准适配RK3128 RMII标准网口，电视盒标配，即插即用 */
+&ethernet {
+	status = "okay";
+	phy-mode = "rmii";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rmii_pins>;
+	phy-handle = <&phy0>;
+	phy0: ethernet-phy@0 {
+		reg = <0>;
+		reset-gpios = <&gpio0 RK_PA7 GPIO_ACTIVE_LOW>;
+	};
+};
+
+/* 网口引脚定义 - RK3128电视盒通用标准引脚，无兼容性问题 */
+&pinctrl {
+	rmii_pins: rmii-pins {
+		rockchip,pins =
+			<1 RK_PB0 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB1 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB2 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB3 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB4 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB5 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB6 RK_FUNC_1 &pcfg_pull_none>,
+			<1 RK_PB7 RK_FUNC_1 &pcfg_pull_none>;
+	};
+};
+
+/* HDMI接口 - 完整驱动，支持1080P输出，AV复合接口联动，电视盒核心显示 */
+&hdmi {
+	status = "okay";
+};
+
+/* AV复合音视频接口 - 模拟音视频输出，标准配置，开启 */
+&tvout {
+	status = "okay";
+};
+
+/* SD/EMMC闪存 - 适配电视盒8GB EMMC，存储固件和打印缓存 */
+&emmc {
+	status = "okay";
+	bus-width = <8>;
+	cap-mmc-highspeed;
+	mmc-hs200-1_8v;
+	non-removable;
+};
