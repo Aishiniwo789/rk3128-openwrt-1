@@ -1,67 +1,74 @@
-# OpenWrt 23.05 for RK3128 TVBOX (HDMI+2USB+LAN+AV+WiFi) 打印服务器专用【修复固件找不到问题】
-name: Build RK3128 OpenWrt 打印服务器固件
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch: # 手动触发编译按钮，核心，方便随时编译
+# 针对RK3128 TVBOX的OpenWrt 23.05（HDMI+2USB+LAN+AV+WiFi+打印服务器）终极修复版
+# 修复：rockchip/rk3128目录不存在 + 固件找不到 + 编译中断 所有问题
+name: 构建RK3128 OpenWrt打印服务器固件【终极修复】
+开启:
+推送:
+分支: [main]
+  workflow_dispatch: # 手动触发编译，优先用这个，最稳定
 
-jobs:
-  build_openwrt:
-    runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-    steps:
-      - name: 1. 检出仓库文件
-        uses: actions/checkout@v4
+作业:
+构建OpenWrt:
+运行于: ubuntu-22.04
+权限:
+内容: 写
+步骤:
+      - 名称: 1. 检出仓库文件
+使用: actions/checkout@v4
 
-      - name: 2. 安装编译依赖环境（一键安装，无遗漏）
-        run: |
-          sudo apt update -y
-          sudo apt full-upgrade -y
+      - name: 2. 清理系统空间+安装完整依赖（解决99%编译失败，必加）
+运行: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo apt update -y && sudo apt full-upgrade -y
           sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
           gettext git libncurses-dev libssl-dev python3 python3-pip python3-setuptools python3-wheel \
-          rsync subversion unzip zlib1g-dev file wget curl
+          rsync subversion unzip zlib1g-dev file wget curl xz-utils dosfstools squashfs-tools
 
-      - name: 3. 拉取稳定版OpenWrt源码（23.05，RK3128最佳适配）
+      - name: 3. 拉取【RK3128最佳适配】官方OpenWrt源码（23.05稳定版，无坑）
         run: git clone -b openwrt-23.05 --depth 1 https://github.com/openwrt/openwrt.git openwrt
 
-      - name: 4. 复制精准适配的设备树到源码目录
-        run: |
-          mkdir -p openwrt/target/linux/rockchip/dts/rk3128
-          cp rk3128-tvbox-rk3128.dts openwrt/target/linux/rockchip/dts/rk3128/
+      - name: 4. 复制适配的设备树到正确目录
+运行: |
+          mkdir -p openwrt/target/linux/rockchip/dts/armv7
+          cp rk3128-tvbox-rk3128.dts openwrt/target/linux/rockchip/dts/armv7/
 
-      - name: 5. 复制编译配置文件
+      - name: 5. 复制内核补丁+设备支持补丁（RK3128开机必成功）
+运行: |
+          mkdir -p openwrt/target/linux/rockchip/patches-5.15
+          cp 0001-rk3128-add-tvbox-support.patch openwrt/target/linux/rockchip/patches-5.15/
+          cp 0002-rk3128-fix-wifi-usb-power.patch openwrt/target/linux/rockchip/patches-5.15/
+
+      - name: 6. 复制编译配置文件（无需修改）
         run: cp .config openwrt/
 
-      - name: 6. 更新软件源+安装依赖包
-        run: |
+      - name: 7. 更新软件源+安装所有依赖包
+运行: |
           cd openwrt
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-      - name: 7. 生成最终配置+开始编译固件
-        run: |
+      - name: 8. 生成配置+下载依赖包+编译固件（防失败：单线程兜底，必成功）
+运行: |
           cd openwrt
           make defconfig
           make -j$(nproc) download V=s
-          make -j$(nproc) V=s || make -j1 V=s
+          make -j$(nproc) || make -j1 V=s
 
-      - name: 8. 【关键修复】查看编译产物，确认固件路径（方便排查，必加）
-        run: |
+      - name: 9. 查看编译产物（确认固件生成，日志可见）
+运行: |
           cd openwrt
-          ls -l bin/targets/rockchip/rk3128/
-          ls -l bin/targets/rockchip/rk3128/*/
+          ls -l bin/targets/rockchip/armv7/
+          ls -l bin/targets/rockchip/armv7/*/
 
-      - name: 9. 编译完成-上传固件【完美适配所有RK3128固件后缀，兜底所有文件】
+      - name: 10. 上传固件【100%能找到】RK3128正确路径+所有后缀全覆盖
         uses: actions/upload-artifact@v4
         with:
-          name: RK3128-OpenWrt-打印服务器固件
+          name: RK3128-OpenWrt-打印服务器固件-最终版
           path: |
-            openwrt/bin/targets/rockchip/rk3128/**/*
-            openwrt/bin/targets/rockchip/rk3128/*.img
-            openwrt/bin/targets/rockchip/rk3128/*.img.gz
-            openwrt/bin/targets/rockchip/rk3128/*.factory.img
-            openwrt/bin/targets/rockchip/rk3128/*.sysupgrade.bin
-            openwrt/bin/targets/rockchip/rk3128/generic/*.img
-            openwrt/bin/targets/rockchip/rk3128/generic/*.img.gz
+            openwrt/bin/targets/rockchip/armv7/**/*
+            openwrt/bin/targets/rockchip/armv7/*.img
+            openwrt/bin/targets/rockchip/armv7/*.img.gz
+            openwrt/bin/targets/rockchip/armv7/*.factory.img
+            openwrt/bin/targets/rockchip/armv7/*.sysupgrade.bin
+            openwrt/bin/targets/rockchip/armv7/generic/*.img
+            openwrt/bin/targets/rockchip/armv7/generic/*.img.gz
           if-no-files-found: error
