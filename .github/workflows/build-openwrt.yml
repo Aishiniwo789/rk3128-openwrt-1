@@ -1,5 +1,4 @@
 # 针对RK3128 TVBOX的OpenWrt 23.05（HDMI+2USB+LAN+AV+WiFi+打印服务器）终极修复版
-# 修复rockchip/rk3128目录不存在 + 固件找不到 + 编译中断 所有问题
 name: 构建RK3128 OpenWrt打印服务器固件【终极修复】
 开启:
 推送:
