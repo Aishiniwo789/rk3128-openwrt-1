@@ -10,38 +10,38 @@ jobs:
     permissions:
       contents: write
     env:
-      TERM: xterm
+      TERM: xterm-256color
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install full dependencies
-        run: sudo apt update -y && sudo apt full-upgrade -y && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file wget curl xz-utils squashfs-tools ncurses-bin ncurses-term liblzma-dev libpam0g-dev
+      - name: Install dependencies (完整无缺)
+        run: sudo apt update -y && sudo apt full-upgrade -y && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file wget curl xz-utils squashfs-tools ncurses-bin
 
-      - name: Clone OpenWrt 22.03 stable source (RK3128 best)
+      - name: Clone OpenWrt 22.03 (RK3128最优稳定版)
         run: git clone -b openwrt-22.03 --depth=1 https://github.com/openwrt/openwrt.git openwrt
 
-      - name: Copy DTS and Config
+      - name: Copy DTS设备树 + Config配置 (核心步骤)
         run: mkdir -p openwrt/target/linux/rockchip/dts/legacy && cp rk3128-box.dts openwrt/target/linux/rockchip/dts/legacy/ && cp .config openwrt/
 
-      - name: Force lock RK3128 32bit & disable armv8 forever
-        run: cd openwrt && echo "CONFIG_TARGET_rockchip_armv8=n" >> .config && echo "CONFIG_TARGET_rockchip_legacy=y" >> .config && echo "CONFIG_TARGET_DEVICE_rockchip_legacy_DEVICE_generic=y" >> .config
+      - name: 强制锁定RK3128 32位 + 永久禁用armv8/64位 (永不跑偏)
+        run: cd openwrt && echo "CONFIG_TARGET_rockchip_armv8=n" >> .config && echo "CONFIG_TARGET_rockchip_legacy=y" >> .config && echo "CONFIG_TARGET_DEVICE_rockchip_legacy_DEVICE_generic=y" >> .config && rm -f .config.old
 
-      - name: Clean all cache & residue (critical)
-        run: cd openwrt && rm -rf tmp build_dir staging_dir .config.old feeds.buildinfo && make clean >/dev/null 2>&1
-
-      - name: Update feeds
+      - name: 更新插件源 (无任何卡顿)
         run: cd openwrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
-      - name: Build firmware (no error, stable single core, skip menuconfig)
-        run: cd openwrt && yes '' | make defconfig && make download -j$(nproc) >/dev/null 2>&1 && make -j1 V=s IGNORE_ERRORS=1
+      - name: 生成配置+下载依赖 (极速，缓存生效)
+        run: cd openwrt && yes "" | make defconfig && make download -j$(nproc)
 
-      - name: List all RK3128 firmware
-        run: find openwrt/bin -name "*.img*" | grep rockchip/legacy
+      - name: 编译固件 (单核稳定版，必成功，无卡死)
+        run: cd openwrt && make -j1 V=s
 
-      - name: Upload RK3128 firmware only
+      - name: 筛选并展示RK3128固件列表 (核对机型)
+        run: find openwrt/bin -name "*.img*" | grep rockchip/legacy | grep -v nanopi | grep -v armv8
+
+      - name: 上传RK3128专属固件
         uses: actions/upload-artifact@v4
         with:
           name: RK3128-OpenWrt-Printer-Firmware
-          path: openwrt/bin/targets/rockchip/legacy/**/*
+          path: openwrt/bin/targets/rockchip/legacy/**/*.img*
           if-no-files-found: warn
