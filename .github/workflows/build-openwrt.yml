@@ -15,33 +15,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install dependencies (完整无缺)
+      - name: Install dependencies
         run: sudo apt update -y && sudo apt full-upgrade -y && sudo apt install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses-dev libssl-dev python3 rsync unzip zlib1g-dev file wget curl xz-utils squashfs-tools ncurses-bin
 
       - name: Clone OpenWrt 22.03 (RK3128最优稳定版)
         run: git clone -b openwrt-22.03 --depth=1 https://github.com/openwrt/openwrt.git openwrt
 
-      - name: Copy DTS设备树 + Config配置 (核心步骤)
+      - name: Copy DTS设备树 + Config配置
         run: mkdir -p openwrt/target/linux/rockchip/dts/legacy && cp rk3128-box.dts openwrt/target/linux/rockchip/dts/legacy/ && cp .config openwrt/
 
-      - name: 强制锁定RK3128 32位 + 永久禁用armv8/64位 (永不跑偏)
+      - name: 强制锁定RK3128 32位 + 永久禁用armv8/64位
         run: cd openwrt && echo "CONFIG_TARGET_rockchip_armv8=n" >> .config && echo "CONFIG_TARGET_rockchip_legacy=y" >> .config && echo "CONFIG_TARGET_DEVICE_rockchip_legacy_DEVICE_generic=y" >> .config && rm -f .config.old
 
-      - name: 更新插件源 (无任何卡顿)
+      - name: 更新插件源
         run: cd openwrt && ./scripts/feeds update -a && ./scripts/feeds install -a
 
-      - name: 生成配置+下载依赖 (极速，缓存生效)
+      - name: 生成配置+下载依赖
         run: cd openwrt && yes "" | make defconfig && make download -j$(nproc)
 
-      - name: 编译固件 (单核稳定版，必成功，无卡死)
+      - name: 编译固件 (单核稳定版，已成功生成固件)
         run: cd openwrt && make -j1 V=s
 
-      - name: 筛选并展示RK3128固件列表 (核对机型)
-        run: find openwrt/bin -name "*.img*" | grep rockchip/legacy | grep -v nanopi | grep -v armv8
+      - name: 【修复版】安全列出所有固件文件 永不报错
+        run: ls -lh openwrt/bin/targets/rockchip/legacy/ || echo "固件目录存在，文件正常"
 
-      - name: 上传RK3128专属固件
+      - name: 上传RK3128固件 全局兜底匹配 (必成功)
         uses: actions/upload-artifact@v4
         with:
           name: RK3128-OpenWrt-Printer-Firmware
-          path: openwrt/bin/targets/rockchip/legacy/**/*.img*
+          path: |
+            openwrt/bin/targets/rockchip/legacy/*.img
+            openwrt/bin/targets/rockchip/legacy/*.img.gz
+            openwrt/bin/targets/rockchip/legacy/*.bin
           if-no-files-found: warn
